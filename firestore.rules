@@ -1,0 +1,167 @@
+rules_version = '2';
+
+// ============================================================
+// FA26 G1 提案比賽 — Firestore 安全規則
+// 貼到 Firebase 主控台 → Firestore Database → 規則 → 發布
+// ============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- 身分 ----------
+    function signedIn() { return request.auth != null; }
+    function myEmail() { return request.auth.token.email.lower(); }
+
+    // 只接受已驗證的 @g.nccu.edu.tw 帳號
+    function isSchool() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && myEmail().matches('^[^@]+@g[.]nccu[.]edu[.]tw$');
+    }
+
+    // 永遠是管理員（要和 js/firebase-config.js 的 OWNER_ADMINS 一致）
+    function isOwnerAdmin() {
+      return isSchool() && myEmail() in ['s.w.liao@g.nccu.edu.tw'];
+    }
+
+    function rosterPath() { return /databases/$(database)/documents/roster/$(myEmail()); }
+    function hasRoster() { return exists(rosterPath()); }
+    function myRoster() { return get(rosterPath()).data; }
+
+    function isAdmin() {
+      return isOwnerAdmin()
+        || (isSchool() && hasRoster() && myRoster().get('isAdmin', false) == true);
+    }
+    function isTeacher() {
+      return isAdmin() || (hasRoster() && myRoster().get('isTeacher', false) == true);
+    }
+    function myJudgeSlot() { return hasRoster() ? myRoster().get('judgeSlot', null) : null; }
+    function myTeam() { return hasRoster() ? myRoster().get('team', null) : null; }
+
+    // ---------- 活動設定 ----------
+    function settings() { return get(/databases/$(database)/documents/config/settings).data; }
+    function editOpen() { return settings().get('editLocked', false) == false; }
+    function investOpen() { return settings().get('investState', 'notOpen') == 'open'; }
+    function quota() {
+      return myJudgeSlot() != null
+        ? settings().get('judgeCoins', 20)
+        : settings().get('defaultCoins', 3);
+    }
+
+    // config/settings：網站設定、首頁文字、賽程。任何人可讀，只有管理員可改
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // roster/{email}：名單。本人只能讀自己的，管理員可讀寫全部
+    match /roster/{email} {
+      allow read: if isAdmin() || (isSchool() && email == myEmail());
+      allow write: if isAdmin();
+    }
+
+    // ---------- 評審卡 ----------
+    function validJudgeCard(d) {
+      return d.get('roleName', '') is string && d.get('roleName', '').size() <= 40
+        && d.get('roleTitle', '') is string && d.get('roleTitle', '').size() <= 40
+        && d.get('bio', '') is string && d.get('bio', '').size() <= 600
+        && d.get('photo', '') is string && d.get('photo', '').size() <= 400000;
+    }
+
+    match /judgeCards/{slot} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isSchool() && editOpen() && myJudgeSlot() == slot
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['photo', 'roleName', 'roleTitle', 'bio', 'updatedAt', 'updatedBy'])
+        && validJudgeCard(request.resource.data)
+      );
+    }
+
+    // ---------- 參賽隊伍卡 ----------
+    function validTeam(d) {
+      return d.keys().hasOnly(['projectName', 'intro', 'image', 'updatedAt', 'updatedBy'])
+        && d.get('projectName', '') is string && d.get('projectName', '').size() <= 40
+        && d.get('intro', '') is string && d.get('intro', '').size() <= 800
+        && d.get('image', '') is string && d.get('image', '').size() <= 400000;
+    }
+
+    match /teams/{teamId} {
+      allow read: if true;
+      allow delete: if isAdmin();
+      allow create, update: if isAdmin() || (
+        isSchool() && editOpen() && myTeam() == teamId && validTeam(request.resource.data)
+      );
+    }
+
+    // ---------- 投資 ----------
+    // investments/{uid}：每人一份，記錄目前投給各組的金額
+    // 每次修改都必須「同時」新增一筆 investLogs 紀錄（批次寫入），且兩者內容一致
+
+    function amountsOf(d) {
+      return {
+        'team1': d.get('team1', 0), 'team2': d.get('team2', 0), 'team3': d.get('team3', 0),
+        'team4': d.get('team4', 0), 'team5': d.get('team5', 0)
+      };
+    }
+    function zeroAmounts() {
+      return { 'team1': 0, 'team2': 0, 'team3': 0, 'team4': 0, 'team5': 0 };
+    }
+    function validAmount(v) { return v is int && v >= 0; }
+    function invPath(uid) { return /databases/$(database)/documents/investments/$(uid); }
+    function logPath(logId) { return /databases/$(database)/documents/investLogs/$(logId); }
+
+    function validInvestment(d) {
+      return d.keys().hasOnly(['email', 'team1', 'team2', 'team3', 'team4', 'team5', 'updatedAt', 'logId'])
+        && d.keys().hasAll(['email', 'team1', 'team2', 'team3', 'team4', 'team5', 'updatedAt', 'logId'])
+        && d.email == myEmail()
+        && validAmount(d.team1) && validAmount(d.team2) && validAmount(d.team3)
+        && validAmount(d.team4) && validAmount(d.team5)
+        // 總額不能超過自己的額度
+        && d.team1 + d.team2 + d.team3 + d.team4 + d.team5 <= quota()
+        // 組員不能投資自己的組
+        && (myTeam() == null || d.get(myTeam(), 0) == 0)
+        && d.updatedAt == request.time;
+    }
+
+    match /investments/{uid} {
+      allow read: if isSchool() && (request.auth.uid == uid || isAdmin());
+      // 只有管理員能刪（賽前測試用的「清除所有投資紀錄」）
+      allow delete: if isAdmin();
+      allow create, update: if isSchool()
+        && request.auth.uid == uid
+        && investOpen()
+        && validInvestment(request.resource.data)
+        // 必須同時新增一筆全新的紀錄
+        && request.resource.data.logId is string
+        && !exists(logPath(request.resource.data.logId))
+        && existsAfter(logPath(request.resource.data.logId));
+    }
+
+    // investLogs/{logId}：每次變動的紀錄（給管理員查詢與結尾動畫用），只能新增，不能修改
+    match /investLogs/{logId} {
+      allow read: if isAdmin();
+      allow delete: if isAdmin();
+      allow update: if false;
+      allow create: if isSchool()
+        && investOpen()
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'account', 'name', 'isJudge', 'isTeacher', 'before', 'after', 'at'])
+        && request.resource.data.get('name', '') is string
+        && request.resource.data.get('name', '').size() <= 40
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == myEmail()
+        && request.resource.data.account == myEmail().split('@')[0]
+        && request.resource.data.isJudge == (myJudgeSlot() != null)
+        && request.resource.data.isTeacher == isTeacher()
+        && request.resource.data.at == request.time
+        // 「變動前」必須等於目前資料庫裡的金額
+        && request.resource.data.before == (exists(invPath(request.auth.uid))
+             ? amountsOf(get(invPath(request.auth.uid)).data)
+             : zeroAmounts())
+        // 「變動後」必須等於同一批次寫入後的金額
+        && getAfter(invPath(request.auth.uid)).data.logId == logId
+        && request.resource.data.after == amountsOf(getAfter(invPath(request.auth.uid)).data);
+    }
+  }
+}

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>評審介紹｜FA26 G1 提案比賽</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header id="site-header"></header>
+
+  <main class="container">
+    <span class="tag">INVESTORS</span>
+    <h1 class="page-title">評審介紹</h1>
+    <p class="muted">每位評審都扮演一位投資人，手上握有 <b id="judge-coins">20</b> 枚 Flagship-coin。</p>
+    <div id="judges" class="card-grid"><p class="muted">載入中…</p></div>
+  </main>
+
+  <script type="module">
+    import { collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { startPage, db, configReady, watchSettings } from "./js/common.js";
+    import { renderJudgeCard } from "./js/cards.js";
+
+    const box = document.getElementById("judges");
+    startPage({ active: "judges" });
+    watchSettings((s) => { document.getElementById("judge-coins").textContent = s.judgeCoins; });
+
+    if (configReady) {
+      onSnapshot(collection(db, "judgeCards"), (snap) => {
+        const cards = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .filter((c) => c.active !== false)
+          .sort((a, b) => (a.order || 0) - (b.order || 0));
+        box.innerHTML = cards.length
+          ? cards.map((c, i) => renderJudgeCard(c, i)).join("")
+          : `<div class="empty-state">評審名單即將公布！</div>`;
+      }, (e) => {
+        box.innerHTML = `<p class="badge badge-red">讀取失敗：${e.message}</p>`;
+      });
+    }
+  </script>
+</body>
+</html>

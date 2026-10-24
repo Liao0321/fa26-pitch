@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>賽程｜FA26 G1 提案比賽</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header id="site-header"></header>
+
+  <main class="container">
+    <span class="tag">MATCH DAY</span>
+    <h1 class="page-title">2026/11/6 賽程</h1>
+    <div id="schedule"><p class="muted">載入中…</p></div>
+  </main>
+
+  <script type="module">
+    import { startPage, watchContent } from "./js/common.js";
+    import { renderSchedule } from "./js/cards.js";
+    import { EVENT_DATE } from "./js/firebase-config.js";
+
+    const box = document.getElementById("schedule");
+    let rows = [];
+
+    // 比賽當天：依照現在時間標出「進行中」的項目
+    function currentIndex() {
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      if (today !== EVENT_DATE) return -1;
+      const minutes = now.getHours() * 60 + now.getMinutes();
+      let idx = -1;
+      rows.forEach((r, i) => {
+        const m = String(r.time || "").match(/(\d{1,2})[:：](\d{2})/);
+        if (m && Number(m[1]) * 60 + Number(m[2]) <= minutes) idx = i;
+      });
+      return idx;
+    }
+
+    function render() {
+      box.innerHTML = renderSchedule(rows, currentIndex());
+    }
+
+    watchContent((c) => { rows = c.schedule || []; render(); });
+    setInterval(render, 60 * 1000);
+    startPage({ active: "schedule" });
+  </script>
+</body>
+</html>

@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>安全規則檢測｜FA26 G1 提案比賽</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header id="site-header"></header>
+
+  <main class="container">
+    <span class="tag">SECURITY CHECK</span>
+    <h1 class="page-title">安全規則自我檢測</h1>
+    <div class="card">
+      <p style="margin-top:0">這個頁面會用<b>目前登入的帳號</b>，故意做出各種違規操作，確認 Firebase 安全規則都有擋下來。</p>
+      <ul class="small">
+        <li>不同的檢測需要不同的身分和投資狀態，畫面會告訴你哪些項目這次「略過」，要換什麼條件再測。</li>
+        <li>檢測不會改變任何人的投資金額。唯一的例外是「正常投資」這一項：它會寫入一筆「金額沒有變動」的紀錄，用來確認測試方法本身沒問題。</li>
+      </ul>
+      <div class="row">
+        <button class="btn btn-ghost" id="other-login" type="button">用非學校帳號登入（測試用）</button>
+        <button class="btn btn-ghost hidden" id="other-logout" type="button">登出</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div>
+          <div class="muted small">目前帳號</div>
+          <b id="who">未登入</b>
+        </div>
+        <div>
+          <div class="muted small">投資狀態</div>
+          <b id="state">…</b>
+        </div>
+        <span class="spacer"></span>
+        <button class="btn btn-primary btn-big" id="run" type="button" disabled>開始檢測</button>
+      </div>
+    </div>
+
+    <div id="results"></div>
+  </main>
+
+  <script type="module">
+    import {
+      onAuthStateChanged, signInWithPopup, signOut, GoogleAuthProvider,
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      collection, doc, getDoc, getDocs, setDoc, deleteDoc,
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import {
+      startPage, auth, db, configReady, esc, isSchoolEmail, buildProfile, watchSettings, quotaOf, accountOf,
+    } from "./js/common.js";
+    import { TEAM_IDS } from "./js/firebase-config.js";
+    import { saveInvestment, amountsOf, zeroAmounts, sumOf, isPermissionError } from "./js/invest.js";
+
+    const STATE_LABEL = { notOpen: "尚未開放", open: "開放中", settled: "已結算" };
+    let user = null;
+    let settings = null;
+
+    startPage({ active: "" });
+    watchSettings((s) => { settings = s; document.getElementById("state").textContent = STATE_LABEL[s.investState]; });
+
+    if (configReady) {
+      onAuthStateChanged(auth, (u) => {
+        user = u;
+        document.getElementById("who").textContent = u ? `${u.email}${isSchoolEmail(u.email) ? "" : "（非學校帳號）"}` : "未登入";
+        document.getElementById("run").disabled = !u;
+        document.getElementById("other-logout").classList.toggle("hidden", !u);
+      });
+    }
+
+    document.getElementById("other-login").addEventListener("click", async () => {
+      try {
+        await signInWithPopup(auth, new GoogleAuthProvider());
+      } catch (e) {
+        alert(`登入失敗：${e.code || e.message}`);
+      }
+    });
+    document.getElementById("other-logout").addEventListener("click", () => signOut(auth));
+
+    // ---------- 檢測項目 ----------
+    // when(ctx) 回傳 true 表示要測；回傳字串表示略過的原因
+    // expect: "deny" 應被拒絕；"allow" 應成功
+    function pickTeam(ctx, filter = () => true) {
+      return TEAM_IDS.find((t) => t !== ctx.profile?.team && filter(t));
+    }
+    function changed(ctx, t, value) {
+      return { ...ctx.mine, [t]: value };
+    }
+
+    const TESTS = [
+      {
+        name: "非學校帳號：投資",
+        expect: "deny",
+        when: (c) => !c.school || "請用個人 Gmail 登入後再測這一項",
+        run: (c) => saveInvestment(c.profile, zeroAmounts(), { ...zeroAmounts(), team1: 1 }),
+      },
+      {
+        name: "非學校帳號：讀取名單",
+        expect: "deny",
+        when: (c) => !c.school || "請用個人 Gmail 登入後再測這一項",
+        run: () => getDocs(collection(db, "roster")),
+      },
+      {
+        name: "正常投資（金額不變）── 確認檢測方法正常",
+        expect: "allow",
+        when: (c) => (c.school && c.state === "open") || "需要學校帳號，且投資狀態為「開放中」",
+        run: (c) => saveInvestment(c.profile, c.mine, { ...c.mine }),
+      },
+      {
+        name: "超過額度",
+        expect: "deny",
+        when: (c) => (c.school && c.state === "open") || "需要學校帳號，且投資狀態為「開放中」",
+        run: (c) => {
+          const t = pickTeam(c);
+          const others = sumOf(c.mine) - c.mine[t];
+          return saveInvestment(c.profile, c.mine, changed(c, t, c.quota - others + 1));
+        },
+      },
+      {
+        name: "投資自己的組",
+        expect: "deny",
+        when: (c) => (c.school && c.state === "open" && c.profile.team) || "需要「組員」帳號，且投資狀態為「開放中」",
+        run: (c) => saveInvestment(c.profile, c.mine, changed(c, c.profile.team, 1)),
+      },
+      {
+        name: "投資負數",
+        expect: "deny",
+        when: (c) => (c.school && c.state === "open") || "需要學校帳號，且投資狀態為「開放中」",
+        run: (c) => saveInvestment(c.profile, c.mine, changed(c, pickTeam(c), -1)),
+      },
+      {
+        name: "投資小數（0.5 枚）",
+        expect: "deny",
+        when: (c) => (c.school && c.state === "open") || "需要學校帳號，且投資狀態為「開放中」",
+        run: (c) => {
+          const t = pickTeam(c);
+          return saveInvestment(c.profile, c.mine, changed(c, t, c.mine[t] + 0.5));
+        },
+      },
+      {
+        name: "偽造變動紀錄（紀錄和實際金額不一致）",
+        expect: "deny",
+        when: (c) => (c.school && c.state === "open") || "需要學校帳號，且投資狀態為「開放中」",
+        run: (c) => {
+          const t = pickTeam(c);
+          return saveInvestment(c.profile, c.mine, { ...c.mine }, { logAfter: changed(c, t, c.mine[t] + 1) });
+        },
+      },
+      {
+        name: "修改別人的投資",
+        expect: "deny",
+        when: (c) => c.school || "需要學校帳號",
+        run: (c) => saveInvestment(c.profile, zeroAmounts(), { ...zeroAmounts(), team1: 1 }, { uid: "someone-else-test" }),
+      },
+      {
+        name: "投資尚未開放時投資",
+        expect: "deny",
+        when: (c) => (c.school && c.state === "notOpen") || "需要投資狀態為「尚未開放」",
+        run: (c) => saveInvestment(c.profile, c.mine, changed(c, pickTeam(c), c.mine[pickTeam(c)] + 1)),
+      },
+      {
+        name: "結算後撤回投資",
+        expect: "deny",
+        when: (c) => (c.school && c.state === "settled") || "需要投資狀態為「已結算」",
+        run: (c) => {
+          const t = pickTeam(c, (x) => c.mine[x] > 0);
+          if (t) return saveInvestment(c.profile, c.mine, changed(c, t, c.mine[t] - 1));
+          return saveInvestment(c.profile, c.mine, { ...c.mine });
+        },
+      },
+      {
+        name: "結算後加碼",
+        expect: "deny",
+        when: (c) => (c.school && c.state === "settled") || "需要投資狀態為「已結算」",
+        run: (c) => saveInvestment(c.profile, c.mine, changed(c, pickTeam(c), c.mine[pickTeam(c)] + 1)),
+      },
+      {
+        name: "非管理員：讀取所有人的投資",
+        expect: "deny",
+        when: (c) => (c.school && !c.profile.isAdmin) || "請用非管理員的學校帳號測",
+        run: () => getDocs(collection(db, "investments")),
+      },
+      {
+        name: "非管理員：修改活動設定",
+        expect: "deny",
+        when: (c) => (c.school && !c.profile.isAdmin) || "請用非管理員的學校帳號測",
+        // 寫入和目前一樣的值，萬一沒擋住也不會改變任何設定
+        run: (c) => setDoc(doc(db, "config", "settings"), { judgeCoins: c.settings.judgeCoins }, { merge: true }),
+      },
+      {
+        name: "非管理員：修改名單",
+        expect: "deny",
+        when: (c) => (c.school && !c.profile.isAdmin) || "請用非管理員的學校帳號測",
+        run: async () => {
+          const ref = doc(db, "roster", "rules-test@g.nccu.edu.tw");
+          await setDoc(ref, { name: "測試" });
+          await deleteDoc(ref).catch(() => {}); // 萬一沒擋住，把測試資料刪掉
+        },
+      },
+      {
+        name: "編輯別組的卡片",
+        expect: "deny",
+        when: (c) => (c.school && !c.profile.isAdmin) || "請用非管理員的學校帳號測",
+        run: async (c) => {
+          const t = pickTeam(c);
+          const snap = await getDoc(doc(db, "teams", t));
+          // 寫回一模一樣的內容，萬一沒擋住也不會改變卡片
+          const d = snap.exists() ? snap.data() : {};
+          await setDoc(doc(db, "teams", t), {
+            projectName: d.projectName || "", intro: d.intro || "", image: d.image || "",
+          }, { merge: true });
+        },
+      },
+    ];
+
+    async function buildContext() {
+      const school = isSchoolEmail(user.email) && user.emailVerified;
+      let roster = null;
+      if (school) {
+        const snap = await getDoc(doc(db, "roster", user.email.toLowerCase())).catch(() => null);
+        roster = snap?.exists() ? snap.data() : null;
+      }
+      const profile = school
+        ? buildProfile(user, roster)
+        : { uid: user.uid, email: user.email.toLowerCase(), account: accountOf(user.email), isJudge: false, isTeacher: false, team: null };
+      let mine = zeroAmounts();
+      if (school) {
+        const snap = await getDoc(doc(db, "investments", user.uid)).catch(() => null);
+        if (snap?.exists()) mine = amountsOf(snap.data());
+      }
+      return { school, profile, mine, settings, state: settings.investState, quota: quotaOf(profile, settings) };
+    }
+
+    document.getElementById("run").addEventListener("click", async () => {
+      const btn = document.getElementById("run");
+      const box = document.getElementById("results");
+      btn.disabled = true;
+      btn.textContent = "檢測中…";
+      box.innerHTML = "";
+      const ctx = await buildContext();
+      const rows = [];
+      let pass = 0, fail = 0, skip = 0;
+      for (const test of TESTS) {
+        const ok = test.when(ctx);
+        if (ok !== true) {
+          rows.push({ test, status: "skip", note: ok || "此帳號不適用" });
+          skip++;
+          continue;
+        }
+        let outcome, note = "";
+        try {
+          await test.run(ctx);
+          outcome = "allow";
+        } catch (e) {
+          outcome = isPermissionError(e) ? "deny" : "error";
+          note = e.code || e.message;
+        }
+        if (outcome === test.expect) {
+          rows.push({ test, status: "pass", note: outcome === "deny" ? "已被拒絕" : "成功" });
+          pass++;
+        } else {
+          rows.push({
+            test, status: "fail",
+            note: outcome === "allow" ? "⚠️ 沒有被擋下來！" : outcome === "deny" ? `被拒絕了（${note}）` : `發生其他錯誤：${note}`,
+          });
+          fail++;
+        }
+      }
+      box.innerHTML = `
+        <div class="card ${fail ? "danger-zone" : ""}">
+          <h3 style="margin:0">${fail ? `❌ ${fail} 項不符合預期` : "✅ 全部符合預期"}</h3>
+          <p class="muted small" style="margin:4px 0 0">通過 ${pass}・失敗 ${fail}・略過 ${skip}｜身分：${esc(ctx.school ? ctx.profile.roles.join("・") : "非學校帳號")}｜投資狀態：${STATE_LABEL[ctx.state]}</p>
+        </div>
+        <div class="table-wrap" style="margin-top:16px"><table>
+          <thead><tr><th>結果</th><th>檢測項目</th><th>預期</th><th>說明</th></tr></thead>
+          <tbody>${rows.map((r) => `
+            <tr class="${r.status === "fail" ? "row-error" : ""}">
+              <td>${{ pass: "✅", fail: "❌", skip: "➖ 略過" }[r.status]}</td>
+              <td>${esc(r.test.name)}</td>
+              <td>${r.test.expect === "deny" ? "應被拒絕" : "應成功"}</td>
+              <td style="white-space:normal">${esc(r.note)}</td>
+            </tr>`).join("")}
+          </tbody></table></div>`;
+      btn.disabled = false;
+      btn.textContent = "再檢測一次";
+    });
+  </script>
+</body>
+</html>

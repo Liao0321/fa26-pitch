@@ -1,0 +1,231 @@
+/* ============================================================
+   投影模式：淺色、超大字體，和網站同一套風格
+   ============================================================ */
+
+.screen-body {
+  overflow: hidden;
+  height: 100vh;
+  font-size: clamp(16px, 1.6vw, 30px);
+}
+
+.screen-toolbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.94);
+  border-bottom: var(--line);
+  font-size: 14px;
+  transition: transform 0.25s, opacity 0.25s;
+}
+.screen-toolbar.is-hidden { transform: translateY(-100%); opacity: 0; pointer-events: none; }
+.toolbar-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.toolbar-hint { color: var(--muted); font-size: 13px; }
+
+.stage {
+  height: 100vh;
+  width: 100vw;
+  padding: 4vh 5vw;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  user-select: none;
+}
+.stage.mode-replay { padding: 0; }
+
+.stage-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 2vh;
+  height: 100%;
+}
+.screen-title { margin: 0; font-size: clamp(48px, 8vw, 150px); font-weight: 900; line-height: 1.1; }
+.screen-muted { color: var(--muted); margin: 0; }
+.screen-hint { color: var(--green-deep); font-weight: 800; animation: blink 1.6s infinite; }
+@keyframes blink { 50% { opacity: 0.35; } }
+
+.tag-xl { font-size: clamp(11px, 1vw, 20px); padding: 6px 14px; }
+.coin-xl { width: clamp(40px, 6vw, 110px); height: clamp(40px, 6vw, 110px); border-width: 5px; box-shadow: inset -8px -8px 0 #d9a520; }
+.coin-lg { width: 1.2em; height: 1.2em; }
+
+.slide-in { animation: slide-in 0.45s cubic-bezier(.2,.8,.3,1); }
+@keyframes slide-in { from { opacity: 0; transform: translateX(40px); } }
+
+/* ---------- 介紹模式 ---------- */
+.intro-slide {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 4vw;
+  align-items: center;
+  height: 100%;
+}
+.intro-media {
+  border: 5px solid var(--ink);
+  box-shadow: 12px 12px 0 var(--ink);
+  background: #eee;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  max-height: 78vh;
+}
+.intro-media.is-square { aspect-ratio: 1 / 1; justify-self: center; height: min(72vh, 40vw); width: auto; }
+.intro-media img { width: 100%; height: 100%; object-fit: cover; }
+.intro-media .img-placeholder { font-size: clamp(14px, 1.5vw, 28px); }
+.intro-text h1 {
+  margin: 2vh 0 1.5vh;
+  font-size: clamp(40px, 5.2vw, 110px);
+  font-weight: 900;
+  line-height: 1.1;
+}
+.role-xl { font-size: clamp(20px, 2.2vw, 44px); padding: 4px 18px; border-width: 3px; }
+.intro-desc { font-size: clamp(20px, 2vw, 40px); line-height: 1.6; margin: 3vh 0 0; }
+
+/* ---------- 排行榜 ---------- */
+.board { width: 100%; max-width: 1600px; margin: 0 auto; }
+.board-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3vh; flex-wrap: wrap; gap: 12px; }
+.board-head h2 { margin: 0; font-size: clamp(32px, 4vw, 80px); font-weight: 900; }
+.legend { display: flex; gap: 24px; font-weight: 700; }
+.sw { display: inline-block; width: 1em; height: 1em; border: 3px solid var(--ink); vertical-align: -0.15em; margin-right: 6px; }
+.sw-judge, .bar-judge { background: var(--green-deep); }
+.sw-aud, .bar-aud { background: var(--green); }
+
+.board-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 2fr) auto;
+  align-items: center;
+  gap: 2vw;
+  padding: 1.4vh 1.5vw;
+  margin-bottom: 1.8vh;
+  background: var(--paper);
+  border: 4px solid var(--ink);
+  box-shadow: 6px 6px 0 var(--ink);
+  transition: background 0.4s;
+}
+.board-row.is-top { background: var(--yellow-soft); }
+.board-label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 14px;
+  align-items: center;
+  min-width: 0;
+}
+.board-rank { grid-row: 1 / 3; font-weight: 900; color: var(--green-deep); min-width: 2.2em; font-size: 1.2em; }
+.board-no { justify-self: start; font-size: 0.45em; background: var(--ink); color: var(--green); padding: 3px 8px; }
+.board-name {
+  font-weight: 900;
+  font-size: 1.25em;
+  line-height: 1.25;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.board-bar {
+  display: flex;
+  height: clamp(28px, 5vh, 70px);
+  background: #eef0e8;
+  border: 3px solid var(--ink);
+}
+.board-bar > div { height: 100%; width: 0; transition: width 1s cubic-bezier(.2,.8,.3,1); }
+.board-nums { display: flex; align-items: baseline; gap: 18px; white-space: nowrap; }
+.small-num { font-size: 0.75em; color: var(--muted); }
+.total-num b { font-size: 2em; font-weight: 900; font-variant-numeric: tabular-nums; }
+
+.board-hidden {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2vh;
+}
+.board-hidden h2 { margin: 0; font-size: clamp(36px, 5vw, 96px); font-weight: 900; }
+.grand { display: flex; align-items: center; gap: 2vw; }
+.grand b {
+  font-size: clamp(90px, 16vw, 320px);
+  font-weight: 900;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 8px 8px 0 var(--green);
+}
+.grand-unit { font-family: var(--pixel); font-size: clamp(12px, 1.4vw, 26px); }
+.coin-pop { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+
+/* ---------- 頒獎 ---------- */
+.award {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4vh;
+  height: 100%;
+  overflow: hidden;
+}
+.award-place {
+  font-size: clamp(48px, 7vw, 140px);
+  font-weight: 900;
+  padding: 0 3vw;
+  background: var(--paper);
+  border: 5px solid var(--ink);
+  box-shadow: 10px 10px 0 var(--ink);
+}
+.award.is-champ .award-place { background: var(--yellow); }
+.award-teams { display: flex; gap: 3vw; justify-content: center; flex-wrap: wrap; }
+.award-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 2vw;
+  align-items: center;
+  width: min(80vw, 1300px);
+  background: var(--paper);
+  border: 5px solid var(--ink);
+  box-shadow: 12px 12px 0 var(--ink);
+  padding: 2vw;
+}
+.award-teams:has(.award-card + .award-card) .award-card { width: min(42vw, 700px); grid-template-columns: 1fr; }
+.award-media { aspect-ratio: 4 / 3; border: 4px solid var(--ink); overflow: hidden; background: #eee; }
+.award-media img { width: 100%; height: 100%; object-fit: cover; }
+.award-body h2 { margin: 1.5vh 0; font-size: clamp(36px, 4.4vw, 96px); font-weight: 900; line-height: 1.1; }
+.award-total { display: flex; align-items: center; gap: 12px; font-size: 1.4em; }
+.award-total b { font-size: 2em; font-weight: 900; }
+
+.award-in .award-place { animation: drop-in 0.6s cubic-bezier(.2,1.4,.4,1) both; }
+.award-in .award-card { animation: rise-in 0.8s cubic-bezier(.2,.8,.3,1) 0.5s both; }
+@keyframes drop-in { from { opacity: 0; transform: translateY(-60px) scale(0.6); } }
+@keyframes rise-in { from { opacity: 0; transform: translateY(60px); } }
+
+.coin-rain { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+.award-place, .award-teams { position: relative; z-index: 1; }
+.coin-rain span {
+  position: absolute;
+  top: -40px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--yellow);
+  border: 4px solid var(--ink);
+  box-shadow: inset -5px -5px 0 #d9a520;
+  animation: coin-fall linear infinite;
+}
+@keyframes coin-fall {
+  to { transform: translateY(110vh) rotate(540deg); }
+}
+
+/* ---------- 資金重播 ---------- */
+.replay-wrap { width: 100vw; height: 100vh; }
+.replay-wrap canvas { display: block; width: 100%; height: 100%; }
+
+@media (max-width: 800px) {
+  .intro-slide, .award-card { grid-template-columns: 1fr; }
+  .screen-body { overflow: auto; }
+}

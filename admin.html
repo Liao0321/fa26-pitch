@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>管理後台｜FA26 G1 提案比賽</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header id="site-header"></header>
+
+  <main class="container">
+    <div id="gate" class="card"><p class="muted">載入中…</p></div>
+
+    <div id="admin-area" class="hidden">
+      <nav class="jump-links">
+        <a href="#sec-switches">活動開關</a>
+        <a href="#sec-records">投資紀錄</a>
+        <a href="#sec-content">首頁文字</a>
+        <a href="#sec-schedule">賽程</a>
+        <a href="#sec-roster">名單</a>
+      </nav>
+
+      <section class="section" id="sec-switches">
+        <h2 class="section-title">活動開關</h2>
+        <div class="switch-list">
+          <div class="card switch-row">
+            <div>
+              <b>編輯卡片</b>
+              <div class="muted small">鎖定後，評審和組員只能檢視自己的卡片，不能修改（管理員仍可修改）。</div>
+            </div>
+            <span class="badge" id="edit-state">…</span>
+            <button class="btn" id="toggle-edit" type="button">…</button>
+          </div>
+          <div class="card switch-row">
+            <div>
+              <b>投資</b>
+              <div class="muted small">尚未開放 → 開放中 → 已結算。結算後所有人的投資永久鎖定，不能再調整。</div>
+            </div>
+            <span class="badge" id="invest-state">…</span>
+            <div id="invest-actions" class="row"></div>
+          </div>
+          <div class="card switch-row">
+            <div>
+              <b>排行榜金額</b>
+              <div class="muted small">隱藏時，投影幕只顯示「全場已募資總額」，看不出各組各拿多少。</div>
+            </div>
+            <span class="badge" id="hide-state">…</span>
+            <button class="btn" id="toggle-hide" type="button">…</button>
+          </div>
+          <div class="card">
+            <b>Flagship-coin 額度</b>
+            <div class="row" style="margin-top:10px">
+              <label class="quota-field">評審每人 <input type="number" id="judge-coins" min="1" step="1"></label>
+              <label class="quota-field">其他人每人 <input type="number" id="default-coins" min="1" step="1"></label>
+              <button class="btn btn-primary" id="save-quota" type="button">儲存額度</button>
+            </div>
+            <p class="muted small" style="margin-bottom:0">⚠️ 請在開放投資「之前」設定好。開放後如果調低，已經投超過新額度的人會無法再調整。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="sec-records">
+        <h2 class="section-title">投資紀錄</h2>
+        <div id="stats-box"><p class="muted">載入中…</p></div>
+        <div class="row" style="margin:16px 0">
+          <button class="btn btn-yellow" id="csv-current" type="button">匯出 CSV：每人目前投資</button>
+          <button class="btn btn-yellow" id="csv-logs" type="button">匯出 CSV：逐筆變動紀錄</button>
+        </div>
+        <details class="card">
+          <summary><b>每人目前投資</b> <span class="muted small" id="people-count"></span></summary>
+          <div id="people-box" style="margin-top:12px"></div>
+        </details>
+        <details class="card">
+          <summary><b>最近 100 筆變動</b> <span class="muted small" id="logs-count"></span></summary>
+          <div id="logs-box" style="margin-top:12px"></div>
+        </details>
+        <div class="card danger-zone">
+          <b>賽前測試用：清除所有投資紀錄</b>
+          <p class="small" style="margin:6px 0 12px">刪除所有人的投資和逐筆紀錄，並把投資狀態改回「尚未開放」。名單、卡片內容不受影響。<b>比賽當天不要按！</b></p>
+          <button class="btn btn-danger" id="clear-all" type="button">清除所有投資紀錄</button>
+        </div>
+      </section>
+
+      <section class="section" id="sec-content">
+        <h2 class="section-title">首頁文字</h2>
+        <div class="card">
+          <p class="small muted">
+            排版方式：空一行＝新段落；<code>## 文字</code>＝小標題；<code>- 文字</code>＝項目符號；<code>**文字**</code>＝粗體。<br>
+            寫 <code>{評審額度}</code>、<code>{一般額度}</code> 會自動換成目前設定的 coin 數量。
+          </p>
+          <div class="grid-2">
+            <div class="field">
+              <label for="intro-input">比賽介紹</label>
+              <textarea id="intro-input" rows="10"></textarea>
+            </div>
+            <div class="field">
+              <label for="rules-input">比賽規則</label>
+              <textarea id="rules-input" rows="10"></textarea>
+            </div>
+          </div>
+          <div class="row">
+            <button class="btn btn-primary" id="save-content" type="button">儲存首頁文字</button>
+            <button class="btn btn-ghost" id="reset-content" type="button">還原成預設文字</button>
+          </div>
+          <p class="preview-label" style="margin-top:20px">▼ 預覽</p>
+          <div class="grid-2">
+            <div class="card prose" id="intro-preview"></div>
+            <div class="card prose" id="rules-preview"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="sec-schedule">
+        <h2 class="section-title">賽程</h2>
+        <div class="card">
+          <p class="small muted">一行一個項目，格式：<b>時間｜項目｜說明</b>（說明可省略）。也可以從 Google Sheet 直接貼上三欄。</p>
+          <div class="field">
+            <textarea id="schedule-input" class="mono" rows="10" placeholder="09:00-09:20｜報到、入座｜請用手機登入網站
+09:20-09:40｜開場、評審介紹
+09:40-10:00｜第一組 上台提案"></textarea>
+          </div>
+          <button class="btn btn-primary" id="save-schedule" type="button">儲存賽程</button>
+          <p class="preview-label" style="margin-top:20px">▼ 預覽</p>
+          <div id="schedule-preview"></div>
+        </div>
+      </section>
+
+      <section class="section" id="sec-roster">
+        <h2 class="section-title">名單管理</h2>
+        <div class="card">
+          <p>從 Google Sheet 選取三欄（<b>類別、名字、email</b>）複製，直接貼到下面。一行一人，欄位順序不拘。</p>
+          <ul class="small muted">
+            <li>類別可填：<b>管理員</b>、<b>老師</b>、<b>評審</b>、<b>第一組</b>～<b>第五組</b>（也可寫「第1組」）。</li>
+            <li>同一人有兩種身分（例如管理員＋老師）可以寫兩行，系統會合併。管理員一定算老師。</li>
+            <li>不在名單上的學校帳號，自動算「觀眾」。</li>
+            <li>標題列（例如「類別 名字 email」）會自動略過。</li>
+          </ul>
+          <div class="field">
+            <textarea id="roster-input" class="mono" rows="12" placeholder="評審	王小明	111000001@g.nccu.edu.tw
+第一組	陳小華	111000002@g.nccu.edu.tw
+老師	李老師	teacher@g.nccu.edu.tw"></textarea>
+          </div>
+          <div class="row">
+            <button class="btn btn-yellow" id="preview-btn" type="button">預覽</button>
+            <button class="btn" id="load-current-btn" type="button">把目前名單填回輸入框</button>
+          </div>
+          <div id="preview" class="hidden" style="margin-top:20px"></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">目前名單</h2>
+        <div id="current-roster"><p class="muted">載入中…</p></div>
+      </section>
+    </div>
+  </main>
+
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>

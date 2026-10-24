@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>投影模式｜FA26 G1 提案比賽</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/screen.css">
+</head>
+<body class="screen-body">
+  <!-- 投影用的頁面：不放在主選單，請用管理員帳號開啟 -->
+  <div id="toolbar" class="screen-toolbar">
+    <div class="toolbar-group">
+      <button class="btn btn-small" data-mode="intro" type="button">1 介紹</button>
+      <button class="btn btn-small" data-mode="board" type="button">2 排行榜</button>
+      <button class="btn btn-small" data-mode="awards" type="button">3 頒獎</button>
+      <button class="btn btn-small" data-mode="replay" type="button">4 資金重播</button>
+    </div>
+    <div class="toolbar-group" id="mode-tools"></div>
+    <div class="toolbar-group">
+      <span class="toolbar-hint">← → 切換・F 全螢幕</span>
+      <button class="btn btn-small btn-primary" id="fullscreen" type="button">⛶ 全螢幕</button>
+    </div>
+  </div>
+
+  <main id="stage" class="stage">
+    <div class="stage-center"><p class="screen-muted">載入中…</p></div>
+  </main>
+
+  <script type="module" src="js/screen.js"></script>
+</body>
+</html>
