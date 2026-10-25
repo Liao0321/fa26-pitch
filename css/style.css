@@ -20,7 +20,7 @@
   --line: 3px solid var(--ink);
   --shadow: 5px 5px 0 var(--ink);
   --shadow-sm: 3px 3px 0 var(--ink);
-  --radius: 4px;
+  --radius: 0; /* 全站方角，陰影也不會有圓角 */
   --font: "Noto Sans TC", system-ui, -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
   --pixel: "Press Start 2P", "Noto Sans TC", monospace;
 }
@@ -574,7 +574,6 @@ tr.row-error td { background: var(--red-soft); }
   list-style: none;
   margin: 0;
   padding: 0;
-  max-width: 720px;
 }
 .timeline li {
   display: grid;
