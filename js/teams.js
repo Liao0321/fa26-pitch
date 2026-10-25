@@ -1,7 +1,7 @@
 // 參賽隊伍頁：顯示各組卡片，登入後可在卡片上直接投資
 import { collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
-  startPage, login, db, configReady, esc, toast, confirmDialog, watchSettings, quotaOf,
+  startPage, login, db, configReady, esc, toast, confirmDialog, watchSettings, quotaOf, coinify,
 } from "./common.js";
 import { renderTeamCard, teamDisplayName } from "./cards.js";
 import { TEAM_IDS } from "./firebase-config.js";
@@ -142,7 +142,7 @@ async function confirmInvest(t) {
       <p style="font-size:18px">「<b>${name}</b>」<br>
         ${mine[t]} 枚 → <b style="font-size:24px">${target}</b> 枚
         <span class="badge ${diff > 0 ? "" : "badge-yellow"}">${diff > 0 ? "+" : "−"}${Math.abs(diff)}</span></p>
-      <p class="muted">確認後，你的剩餘 Flagship-coin：${remaining()} → <b>${remainAfter}</b></p>`,
+      <p class="muted">確認後，你的剩餘 ${coinify("Flagship-coin")}：${remaining()} → <b>${remainAfter}</b></p>`,
     okText: diff > 0 ? "投資！" : "確認減少",
   });
   if (!ok) return;

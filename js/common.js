@@ -31,6 +31,12 @@ export function esc(s) {
   }[c]));
 }
 
+// 像素金幣小圖示；coinify() 會在 HTML 裡每個「Flagship-coin」前面加上它
+export const COIN = `<span class="coin-icon coin-inline" aria-hidden="true"></span>`;
+export function coinify(html) {
+  return String(html).replace(/Flagship-coin/g, `${COIN}Flagship-coin`);
+}
+
 export function accountOf(email) {
   return String(email || "").split("@")[0];
 }
@@ -263,7 +269,7 @@ function renderHeader(active, profile) {
   header.innerHTML = `
     <div class="header-row container">
       <a class="brand" href="index.html">
-        <span class="brand-mark">FS</span>
+        <img class="brand-mark" src="img/coin.svg" alt="">
         <span class="brand-text">${esc(EVENT_NAME)}</span>
       </a>
       <div class="header-user">${user}</div>
@@ -278,6 +284,12 @@ function renderHeader(active, profile) {
 // onProfile 會在「登入狀態或名單身分」改變時再次被呼叫
 export function startPage({ active, onProfile = () => {} }) {
   document.title = document.title || EVENT_NAME;
+  if (!document.querySelector('link[rel="icon"]')) {
+    const icon = document.createElement("link");
+    icon.rel = "icon";
+    icon.href = "img/coin.svg";
+    document.head.appendChild(icon);
+  }
   inAppName = handleInAppBrowser();
   renderHeader(active, null);
 

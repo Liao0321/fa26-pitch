@@ -1,5 +1,5 @@
 // 評審卡、隊伍卡、文字排版：公開頁面、編輯預覽、投影模式共用
-import { esc, teamLabel } from "./common.js";
+import { esc, teamLabel, coinify } from "./common.js";
 import { TEAM_IDS } from "./firebase-config.js";
 
 // 字數上限（投影時塞得下）
@@ -17,7 +17,7 @@ export function renderText(text, settings = {}) {
   const fill = (s) => s
     .replaceAll("{評審額度}", settings.judgeCoins ?? 20)
     .replaceAll("{一般額度}", settings.defaultCoins ?? 3);
-  const inline = (s) => esc(fill(s)).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  const inline = (s) => coinify(esc(fill(s)).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>"));
   const out = [];
   let list = null;
   let para = [];

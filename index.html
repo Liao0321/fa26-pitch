@@ -18,18 +18,7 @@
         <span class="tag">FLAGSHIP PITCH DAY</span>
         <span class="badge" id="invest-state">…</span>
       </div>
-      <h1>5 組新創<br><span class="hl">搶奪 Flagship-coin</span></h1>
-      <p class="lead">2026 年 11 月 6 日 9:00–15:30。評審化身投資人，看好哪一組，就把虛擬貨幣投給他們！</p>
-      <div class="row" style="margin-top:20px">
-        <a class="btn btn-primary btn-big" href="teams.html">看參賽隊伍 →</a>
-        <a class="btn btn-yellow btn-big" href="schedule.html">賽程</a>
-      </div>
-      <div class="stat-grid">
-        <div class="stat"><b>5</b><span>參賽隊伍</span></div>
-        <div class="stat"><b id="stat-judge">20</b><span>評審每人 coin</span></div>
-        <div class="stat"><b id="stat-default">3</b><span>其他人每人 coin</span></div>
-        <div class="stat"><b>11/6</b><span>比賽日</span></div>
-      </div>
+      <h1>FA26 G1<br><span class="hl">提案比賽</span></h1>
     </section>
 
     <section class="section">
@@ -46,10 +35,16 @@
       <h2 class="section-title">比賽規則</h2>
       <div class="card prose" id="rules"><p class="muted">載入中…</p></div>
     </section>
+
+    <nav class="home-links">
+      <a class="btn btn-primary btn-big" href="schedule.html">賽程</a>
+      <a class="btn btn-primary btn-big" href="judges.html">評審</a>
+      <a class="btn btn-primary btn-big" href="teams.html">參賽隊伍</a>
+    </nav>
   </main>
 
   <script type="module">
-    import { startPage, login, esc, watchSettings, watchContent, quotaOf } from "./js/common.js";
+    import { startPage, login, esc, watchSettings, watchContent, quotaOf, coinify } from "./js/common.js";
     import { renderText } from "./js/cards.js";
 
     const STATE_TEXT = {
@@ -68,8 +63,6 @@
         const badge = document.getElementById("invest-state");
         badge.textContent = text;
         badge.className = `badge ${cls}`;
-        document.getElementById("stat-judge").textContent = settings.judgeCoins;
-        document.getElementById("stat-default").textContent = settings.defaultCoins;
       }
       if (settings && content) {
         document.getElementById("intro").innerHTML = renderText(content.intro, settings);
@@ -78,7 +71,6 @@
       const box = document.getElementById("me-card");
       if (!profile) {
         box.innerHTML = `
-          <p>登入後就能看到你的身分與 Flagship-coin 額度，比賽當天用手機投資。</p>
           <button class="btn btn-primary btn-big" id="hero-login" type="button">用 @g.nccu.edu.tw 帳號登入</button>`;
         box.querySelector("#hero-login").addEventListener("click", login);
         return;
@@ -88,7 +80,7 @@
         <h3 style="margin:0 0 8px">${esc(profile.name)}（${esc(profile.account)}）</h3>
         <div class="row">
           ${profile.roles.map((r) => `<span class="badge">${esc(r)}</span>`).join("")}
-          ${settings ? `<span class="badge badge-yellow">額度 ${quotaOf(profile, settings)} Flagship-coin</span>` : ""}
+          ${settings ? `<span class="badge badge-yellow">額度 ${quotaOf(profile, settings)} ${coinify("Flagship-coin")}</span>` : ""}
         </div>`;
     }
 

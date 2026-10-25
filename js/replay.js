@@ -36,6 +36,26 @@ const PERSON = [
   "..llll..",
   "..l..l..",
 ];
+// 16×16 像素金幣（和 img/coin.svg 相同）：K 外框、L 亮面、Y 金色、O 陰影、D 字母 FC
+const COIN = [
+  ".....KKKKKK.....",
+  "...KKLLYYYYKK...",
+  "..KLLYYYYYYYYK..",
+  ".KLYDDDDDDDDYOK.",
+  ".KLYDDDDDDDDYOK.",
+  "KLYYDDYYYYYYYYOK",
+  "KLYYDDYYYYYYYYOK",
+  "KLYYDDDDDDYYYYOK",
+  "KLYYDDDDDDYYYYOK",
+  "KLYYDDYYYDDDYYOK",
+  "KYYYDDYYDYYYYYOK",
+  ".KYYDDYYDYYYYOK.",
+  ".KYYDDYYYDDDYOK.",
+  "..KYYYYYYYYOOK..",
+  "...KKOOOOOOKK...",
+  ".....KKKKKK.....",
+];
+const COIN_COLORS = { K: "#141414", L: "#fff3b0", Y: "#f6c945", O: "#d9a520", D: "#4a2c00" };
 const CROWN = [
   "c.c..c.c",
   "cccccccc",
@@ -181,13 +201,10 @@ export function startReplay(canvas, { logs, settings, teamIds, teamName, personN
   }
 
   // ---------- 繪圖 ----------
+  // 和 img/coin.svg 同一個像素金幣，中心在 (x, y)，寬約 2r
   function drawCoin(x, y, r) {
-    ctx.fillStyle = COLORS.ink;
-    ctx.beginPath(); ctx.ellipse(x, y, r + 2, r * 0.75 + 2, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = COLORS.coinShade;
-    ctx.beginPath(); ctx.ellipse(x, y + 1.5, r, r * 0.75, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = COLORS.coin;
-    ctx.beginPath(); ctx.ellipse(x, y, r * 0.86, r * 0.62, 0, 0, Math.PI * 2); ctx.fill();
+    const s = r / 8;
+    drawPixels(COIN, x - 8 * s, y - 8 * s, s, (ch) => COIN_COLORS[ch]);
   }
 
   function drawPixels(map, x, y, s, colorOf) {
@@ -196,7 +213,7 @@ export function startReplay(canvas, { logs, settings, teamIds, teamName, personN
         const c = colorOf(ch);
         if (!c) return;
         ctx.fillStyle = c;
-        ctx.fillRect(Math.round(x + col * s), Math.round(y + row * s), s, s);
+        ctx.fillRect(Math.round(x + col * s), Math.round(y + row * s), Math.ceil(s), Math.ceil(s));
       });
     });
   }
