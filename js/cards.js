@@ -4,8 +4,7 @@ import { TEAM_IDS } from "./firebase-config.js";
 
 // 字數上限（投影時塞得下）
 export const LIMITS = {
-  roleName: 15,
-  roleTitle: 15,
+  roleTitle: 20,
   bio: 150,
   projectName: 20,
   intro: 300,
@@ -56,8 +55,14 @@ export function teamDisplayName(teamId, data) {
   return (data && data.projectName) || teamLabel(teamId);
 }
 
+// 名字來自名單，不算「已填寫」；有填身分、介紹或照片才算
 export function isJudgeCardFilled(c) {
-  return !!(c && (c.roleName || c.roleTitle || c.bio || c.photo));
+  return !!(c && (c.roleTitle || c.bio || c.photo));
+}
+
+// 評審顯示的名字：名單上的中文名字（舊資料可能只有 roleName）
+export function judgeDisplayName(c) {
+  return (c && (c.name || c.roleName)) || "";
 }
 
 // 賽程時間軸；cur = 「進行中」項目的位置（-1 表示不標示）
@@ -94,11 +99,11 @@ export function renderJudgeCard(card, index = 0) {
   return `
     <article class="judge-card">
       <div class="judge-photo">
-        ${card.photo ? `<img src="${card.photo}" alt="${esc(card.roleName)}">` : `<div class="img-placeholder"><span class="pixel">NO PHOTO</span></div>`}
+        ${card.photo ? `<img src="${card.photo}" alt="${esc(judgeDisplayName(card))}">` : `<div class="img-placeholder"><span class="pixel">NO PHOTO</span></div>`}
       </div>
       <div class="judge-body">
         <span class="tag">JUDGE ${no}</span>
-        <h3>${esc(card.roleName || "（未命名）")}</h3>
+        <h3>${esc(judgeDisplayName(card) || "評審")}</h3>
         ${card.roleTitle ? `<span class="role-title">${esc(card.roleTitle)}</span>` : ""}
         <p class="judge-bio">${plainText(card.bio)}</p>
       </div>

@@ -2,7 +2,7 @@
 // 需要管理員帳號（要讀取所有人的投資才能計算排行榜）
 import { collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { startPage, login, db, esc, watchSettings, teamLabel } from "./common.js";
-import { teamDisplayName, teamNumber, plainText, isJudgeCardFilled } from "./cards.js";
+import { teamDisplayName, teamNumber, plainText, isJudgeCardFilled, judgeDisplayName } from "./cards.js";
 import { computeStats } from "./stats.js";
 import { startReplay } from "./replay.js";
 import { TEAM_IDS, EVENT_NAME } from "./firebase-config.js";
@@ -197,7 +197,7 @@ function renderIntro() {
         </div>
         <div class="intro-text">
           <span class="tag tag-xl">JUDGE ${String(s.index + 1).padStart(2, "0")} / ${String(judgeCount).padStart(2, "0")}</span>
-          <h1>${esc(filled ? c.roleName || "（未命名）" : "準備中…")}</h1>
+          <h1>${esc(judgeDisplayName(c) || "準備中…")}</h1>
           ${c.roleTitle ? `<div class="role-title role-xl">${esc(c.roleTitle)}</div>` : ""}
           <p class="intro-desc">${filled ? plainText(c.bio) : "這位評審還在設定角色"}</p>
         </div>

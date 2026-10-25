@@ -600,7 +600,8 @@ async function saveRoster() {
     });
     removed.forEach((r) => ops.push((b) => b.delete(doc(db, "roster", r.email))));
     judges.forEach((j, i) => {
-      ops.push((b) => b.set(doc(db, "judgeCards", j.judgeSlot), { active: true, order: i + 1 }, { merge: true }));
+      // 評審卡上顯示的名字＝名單上的名字（評審自己不用填）
+      ops.push((b) => b.set(doc(db, "judgeCards", j.judgeSlot), { active: true, order: i + 1, name: j.name || "" }, { merge: true }));
     });
     cardsSnap.forEach((c) => {
       if (!usedSlots.has(c.id) && c.data().active !== false) {

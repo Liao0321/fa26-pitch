@@ -5,7 +5,7 @@ import {
 import {
   startPage, login, db, esc, toast, confirmDialog, teamLabel, watchSettings,
 } from "./common.js";
-import { LIMITS, renderJudgeCard, renderTeamCard } from "./cards.js";
+import { LIMITS, renderJudgeCard, renderTeamCard, isJudgeCardFilled } from "./cards.js";
 import { compressImage } from "./image.js";
 import { TEAM_IDS } from "./firebase-config.js";
 
@@ -21,18 +21,19 @@ let loadedStamp = null; // 載入時的 updatedAt，用來偵測別人是否更�
 let profileKey = null;
 
 const FIELDS = {
+  // 評審的名字直接用名單上的中文名字，不用另外填
   judge: [
-    { key: "roleName", label: "角色名稱", hint: "例如：王董、林部長", type: "text" },
-    { key: "roleTitle", label: "角色身分", hint: "例如：商業大佬、政府官員", type: "text" },
-    { key: "bio", label: "人物背景", hint: "介紹這個角色的經歷、個性、投資偏好", type: "textarea" },
+    { key: "roleTitle", label: "身分、職稱", hint: "例如：某國交通部長、某某基金會理事長、某公司董事", type: "text" },
+    { key: "bio", label: "背景介紹", hint: "可以介紹自己的經歷，傾向於支持什麼樣的投資項目。", type: "textarea" },
   ],
   team: [
-    { key: "projectName", label: "項目名稱", hint: "會顯示在網站和投影幕上，取代「第N組」", type: "text" },
+    { key: "projectName", label: "項目名稱", hint: "", type: "text" },
     { key: "intro", label: "項目介紹", hint: "你們的案子或商品是什麼？解決什麼問題？", type: "textarea" },
   ],
 };
 const IMAGE_KEY = { judge: "photo", team: "image" };
 const IMAGE_LABEL = { judge: "評審照片", team: "項目圖片" };
+const IMAGE_HINT = { judge: "如果你不想放真人的照片，可以放其他圖片。", team: "" };
 
 watchSettings((s) => {
   const lockChanged = settings && settings.editLocked !== s.editLocked;
@@ -53,6 +54,9 @@ startPage({
 });
 
 async function setup() {
+  // 管理員已經在編輯某張卡片：只更新選單，不打斷編輯
+  if (profile?.isAdmin && target && stopDoc) return setupAdminPicker();
+  target = null;
   stopDoc?.();
   stopDoc = null;
   draft = null;
@@ -64,28 +68,45 @@ async function setup() {
     root.querySelector("#edit-login").addEventListener("click", login);
     return;
   }
+  if (profile.isAdmin) return setupAdminPicker();
   if (profile.isJudge) return openTarget({ type: "judge", id: profile.judgeSlot });
   if (profile.team) return openTarget({ type: "team", id: profile.team });
-  if (profile.isAdmin) return setupAdminPicker();
   root.innerHTML = `<div class="empty-state">你目前的身分是「${esc(profile.roles.join("・"))}」，沒有需要編輯的卡片。<br>只有評審和參賽組員需要填寫。</div>`;
 }
 
-// 管理員：可以選擇要編輯哪一張卡片
+// 管理員：可以選擇要編輯任何一組或任何一位評審的卡片
 async function setupAdminPicker() {
-  const snap = await getDocs(collection(db, "judgeCards"));
-  const judges = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+  const [cardsSnap, rosterSnap] = await Promise.all([
+    getDocs(collection(db, "judgeCards")),
+    getDocs(collection(db, "roster")),
+  ]);
+  // 評審卡位置 → 名單上的名字
+  const nameBySlot = new Map();
+  rosterSnap.forEach((d) => { const r = d.data(); if (r.judgeSlot) nameBySlot.set(r.judgeSlot, r.name || d.id); });
+  const judges = cardsSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
     .filter((c) => c.active !== false)
     .sort((a, b) => (a.order || 0) - (b.order || 0));
-  const options = [
-    ...TEAM_IDS.map((t) => `<option value="team:${t}">${esc(teamLabel(t))}</option>`),
-    ...judges.map((j, i) => `<option value="judge:${j.id}">評審卡 ${i + 1}${j.roleName ? `（${esc(j.roleName)}）` : ""}</option>`),
-  ];
+  const judgeOptions = judges.length
+    ? judges.map((j, i) => {
+      const who = nameBySlot.get(j.id) || j.name || "";
+      const status = isJudgeCardFilled(j) ? (j.roleTitle ? `（${j.roleTitle}）` : "") : "（尚未填寫）";
+      return `<option value="judge:${j.id}">評審 ${i + 1}：${esc(who)}${esc(status)}</option>`;
+    }).join("")
+    : `<option disabled>（名單上還沒有評審，請先到管理後台貼上名單）</option>`;
   picker.innerHTML = `
     <label for="pick">管理員模式：選擇要編輯的卡片</label>
-    <select id="pick"><option value="">— 請選擇 —</option>${options.join("")}</select>`;
+    <select id="pick">
+      <option value="">— 請選擇 —</option>
+      <optgroup label="參賽隊伍">${TEAM_IDS.map((t) => `<option value="team:${t}">${esc(teamLabel(t))}</option>`).join("")}</optgroup>
+      <optgroup label="評審">${judgeOptions}</optgroup>
+    </select>`;
   picker.classList.remove("hidden");
-  root.innerHTML = `<div class="empty-state">請從上方選擇一張卡片。</div>`;
-  picker.querySelector("#pick").addEventListener("change", (e) => {
+  const select = picker.querySelector("#pick");
+  // 選單重新載入時，保留管理員已經選好的卡片
+  const current = target ? `${target.type}:${target.id}` : "";
+  if (current && [...select.options].some((o) => o.value === current)) select.value = current;
+  else root.innerHTML = `<div class="empty-state">請從上方選擇一張卡片。</div>`;
+  select.addEventListener("change", (e) => {
     const [type, id] = e.target.value.split(":");
     if (type) openTarget({ type, id });
   });
@@ -124,6 +145,7 @@ function pickFields(data) {
   const out = {};
   for (const f of FIELDS[target.type]) out[f.key] = data[f.key] || "";
   out.image = data[IMAGE_KEY[target.type]] || "";
+  out.name = data.name || ""; // 評審名字（來自名單，只顯示在預覽，不在這裡修改）
   out.updatedBy = data.updatedBy || "";
   out.updatedAt = data.updatedAt || null;
   return out;
@@ -136,7 +158,9 @@ function isLocked() {
 function renderForm() {
   const type = target.type;
   const locked = isLocked();
-  const who = type === "judge" ? "你的評審卡" : `${teamLabel(target.id)}的組別卡（同組任何一位組員都能編輯）`;
+  const who = type === "judge"
+    ? (profile.judgeSlot === target.id ? "你的評審卡" : `評審 ${(target.index || 0) + 1}${draft.name ? `：${draft.name}` : ""} 的評審卡`)
+    : `${teamLabel(target.id)}的組別卡（同組任何一位組員都能編輯）`;
   const last = draft.updatedAt?.toDate
     ? `最後更新：${draft.updatedAt.toDate().toLocaleString("zh-TW", { hour12: false })}（${esc(draft.updatedBy)}）`
     : "尚未填寫過";
@@ -160,7 +184,7 @@ function renderForm() {
                 <input type="file" accept="image/*" id="image-input" hidden ${locked ? "disabled" : ""}>
               </label>
               ${draft.image && !locked ? `<button class="btn btn-small btn-ghost" type="button" id="image-remove">移除</button>` : ""}
-              <div class="hint" id="image-status">會自動縮小壓縮，手機直接拍照也可以。</div>
+              <div class="hint" id="image-status">${IMAGE_HINT[type]}</div>
             </div>
           </div>
         </div>
@@ -168,7 +192,7 @@ function renderForm() {
           <div class="field">
             <label for="f-${f.key}">${f.label}</label>
             ${f.type === "textarea"
-              ? `<textarea id="f-${f.key}" data-key="${f.key}" maxlength="${LIMITS[f.key]}" rows="5" ${locked ? "disabled" : ""}>${esc(draft[f.key])}</textarea>`
+              ? `<textarea id="f-${f.key}" data-key="${f.key}" maxlength="${LIMITS[f.key]}" rows="5" placeholder="${esc(f.placeholder || "")}" ${locked ? "disabled" : ""}>${esc(draft[f.key])}</textarea>`
               : `<input type="text" id="f-${f.key}" data-key="${f.key}" maxlength="${LIMITS[f.key]}" value="${esc(draft[f.key])}" ${locked ? "disabled" : ""}>`}
             <div class="hint row"><span>${f.hint}</span><span class="spacer"></span><span data-count="${f.key}"></span></div>
           </div>`).join("")}
@@ -225,8 +249,7 @@ async function onImage(e) {
     const result = await compressImage(file);
     draft.image = result.dataUrl;
     renderForm();
-    root.querySelector("#image-status").textContent =
-      `已壓縮為 ${result.width}×${result.height}，約 ${Math.round(result.bytes / 1024)} KB（按「儲存」後才會上傳）`;
+    root.querySelector("#image-status").textContent = "按「儲存」後才會上傳";
   } catch (err) {
     status.textContent = err.message;
     toast(err.message, "error");
