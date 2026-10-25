@@ -7,6 +7,7 @@ export const LIMITS = {
   roleTitle: 20,
   bio: 150,
   projectName: 20,
+  slidesUrl: 500,
   intro: 300,
 };
 

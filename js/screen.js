@@ -85,6 +85,8 @@ function refresh(kind) {
   if (mode === "intro" && kind === "cards") renderIntro();
   if (mode === "board" && (kind === "money" || kind === "settings" || kind === "cards")) renderBoard();
   if (mode === "awards" && (kind === "money" || kind === "cards" || kind === "settings")) renderAwards(false);
+  if (mode === "judges" && kind === "cards") renderJudges();
+  if (mode === "pitch" && kind === "cards") renderPitch();
   // 直接用 ?mode=replay 開啟時，紀錄可能還沒載入：載入後再重新開始
   if (mode === "replay" && kind === "logs" && replayLogCount === 0 && data.logs.length) renderReplay();
 }
@@ -106,6 +108,8 @@ function setMode(m) {
   if (m === "board") renderBoard(true);
   if (m === "awards") { awardStep = 0; renderAwards(true); }
   if (m === "replay") renderReplay();
+  if (m === "judges") { judgeIndex = -1; renderJudges(); }
+  if (m === "pitch") renderPitch();
 }
 
 toolbar.addEventListener("click", (e) => {
@@ -133,7 +137,10 @@ document.addEventListener("keydown", (e) => {
   if (e.target.closest("input, textarea, select")) return;
   const k = e.key;
   if (k === "f" || k === "F") return toggleFullscreen();
-  if (["1", "2", "3", "4"].includes(k)) return setMode(["intro", "board", "awards", "replay"][Number(k) - 1]);
+  const MODES = ["intro", "board", "awards", "replay", "judges", "pitch"];
+  if (/^[1-6]$/.test(k)) return setMode(MODES[Number(k) - 1]);
+  if (k === "Escape" && mode === "judges" && judgeIndex >= 0) { judgeIndex = -1; return renderJudges(); }
+  if (k === "Enter" && mode === "pitch") { e.preventDefault(); return openPitchSlides(); }
   const next = ["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(k);
   const prev = ["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(k);
   if (!next && !prev) return;
@@ -143,6 +150,7 @@ document.addEventListener("keydown", (e) => {
 
 stage.addEventListener("click", (e) => {
   if (e.target.closest("button, a")) return;
+  if (mode === "pitch") return; // 提案播放只用按鈕或鍵盤換組，避免誤點
   // 點畫面右側＝下一張，左側＝上一張
   step(e.clientX > window.innerWidth / 3 ? 1 : -1);
 });
@@ -161,6 +169,13 @@ function step(dir) {
     renderAwards(true);
   } else if (mode === "replay" && dir > 0) {
     stopReplay?.restartOrToggle?.();
+  } else if (mode === "judges") {
+    const next = judgeIndex + dir;
+    judgeIndex = next >= data.judges.length ? -1 : Math.max(-1, next);
+    renderJudges();
+  } else if (mode === "pitch") {
+    pitchIndex = Math.min(TEAM_IDS.length - 1, Math.max(0, pitchIndex + dir));
+    renderPitch();
   }
 }
 
@@ -188,20 +203,7 @@ function renderIntro() {
   if (!s) { stage.innerHTML = `<div class="stage-center"><p class="screen-muted">還沒有資料</p></div>`; return; }
 
   if (s.type === "judge") {
-    const c = s.card;
-    const filled = isJudgeCardFilled(c);
-    stage.innerHTML = `
-      <section class="intro-slide slide-in">
-        <div class="intro-media is-square">
-          ${c.photo ? `<img src="${c.photo}" alt="">` : `<div class="img-placeholder"><span class="pixel">${filled ? "NO PHOTO" : "?"}</span></div>`}
-        </div>
-        <div class="intro-text">
-          <span class="tag tag-xl">JUDGE ${String(s.index + 1).padStart(2, "0")} / ${String(judgeCount).padStart(2, "0")}</span>
-          <h1>${esc(judgeDisplayName(c) || "準備中…")}</h1>
-          ${c.roleTitle ? `<div class="role-title role-xl">${esc(c.roleTitle)}</div>` : ""}
-          <p class="intro-desc">${filled ? plainText(c.bio) : "這位評審還在設定角色"}</p>
-        </div>
-      </section>`;
+    stage.innerHTML = judgeSlideHtml(s.card, s.index, judgeCount);
   } else {
     const d = data.teams[s.teamId] || {};
     stage.innerHTML = `
@@ -216,6 +218,109 @@ function renderIntro() {
         </div>
       </section>`;
   }
+}
+
+// 一位評審的完整介紹（介紹模式、評審總覽共用）
+function judgeSlideHtml(c, index, total) {
+  const filled = isJudgeCardFilled(c);
+  return `
+    <section class="intro-slide slide-in">
+      <div class="intro-media is-square">
+        ${c.photo ? `<img src="${c.photo}" alt="">` : `<div class="img-placeholder"><span class="pixel">${filled ? "NO PHOTO" : "?"}</span></div>`}
+      </div>
+      <div class="intro-text">
+        <span class="tag tag-xl">JUDGE ${String(index + 1).padStart(2, "0")} / ${String(total).padStart(2, "0")}</span>
+        <h1>${esc(judgeDisplayName(c) || "準備中…")}</h1>
+        ${c.roleTitle ? `<div class="role-title role-xl">${esc(c.roleTitle)}</div>` : ""}
+        <p class="intro-desc">${filled ? plainText(c.bio) : "這位評審還在設定角色"}</p>
+      </div>
+    </section>`;
+}
+
+// ---------- 5. 評審總覽：一頁看到所有評審，點一位放大介紹 ----------
+let judgeIndex = -1; // -1 = 總覽；0 以上 = 正在介紹第幾位
+
+function renderJudges() {
+  const judges = data.judges;
+  if (judgeIndex >= judges.length) judgeIndex = -1;
+  modeTools.innerHTML = `
+    <button class="btn btn-small" id="judges-all" type="button">全部評審</button>
+    <span class="toolbar-hint">${judgeIndex < 0 ? "點一位評審放大介紹・→ 從第一位開始" : `${judgeIndex + 1} / ${judges.length}・Esc 回到全部`}</span>`;
+  modeTools.querySelector("#judges-all").addEventListener("click", () => { judgeIndex = -1; renderJudges(); });
+  if (!judges.length) {
+    stage.innerHTML = `<div class="stage-center"><p class="screen-muted">名單上還沒有評審</p></div>`;
+    return;
+  }
+  if (judgeIndex >= 0) {
+    stage.innerHTML = judgeSlideHtml(judges[judgeIndex], judgeIndex, judges.length);
+    return;
+  }
+  stage.innerHTML = `
+    <section class="judge-wall slide-in">
+      <div class="judge-wall-head">
+        <span class="tag tag-xl">INVESTORS</span>
+        <h2>今日評審</h2>
+      </div>
+      <div class="judge-wall-grid" style="--cols:${Math.min(5, Math.ceil(judges.length / 2)) || 1}">
+        ${judges.map((c, i) => `
+          <button class="judge-tile" data-judge="${i}" type="button">
+            <div class="judge-tile-photo">
+              ${c.photo ? `<img src="${c.photo}" alt="">` : `<div class="img-placeholder"><span class="pixel">?</span></div>`}
+            </div>
+            <b>${esc(judgeDisplayName(c) || "準備中…")}</b>
+            ${c.roleTitle ? `<span class="role-title">${esc(c.roleTitle)}</span>` : ""}
+          </button>`).join("")}
+      </div>
+    </section>`;
+}
+
+stage.addEventListener("click", (e) => {
+  const tile = e.target.closest("[data-judge]");
+  if (!tile) return;
+  judgeIndex = Number(tile.dataset.judge);
+  renderJudges();
+});
+
+// ---------- 6. 提案播放：第一組到第五組，一鍵開啟各組投影片 ----------
+let pitchIndex = 0;
+
+// Google 簡報的連結改成「簡報模式」網址，打開就是全螢幕播放
+function presentUrl(u) {
+  const m = String(u || "").match(/^https:\/\/docs\.google\.com\/presentation\/d\/([\w-]+)/);
+  return m ? `https://docs.google.com/presentation/d/${m[1]}/present` : u;
+}
+
+function openPitchSlides() {
+  const url = data.teams[TEAM_IDS[pitchIndex]]?.slidesUrl;
+  if (url) window.open(presentUrl(url), "_blank", "noopener");
+}
+
+function renderPitch() {
+  const t = TEAM_IDS[pitchIndex];
+  const d = data.teams[t] || {};
+  modeTools.innerHTML = `
+    ${TEAM_IDS.map((id, i) => `<button class="btn btn-small ${i === pitchIndex ? "btn-yellow" : ""}" data-pitch="${i}" type="button">${esc(teamLabel(id))}${data.teams[id]?.slidesUrl ? "" : " ⚠"}</button>`).join("")}
+    <span class="toolbar-hint">← → 換組・Enter 開啟投影片</span>`;
+  modeTools.querySelectorAll("[data-pitch]").forEach((b) => b.addEventListener("click", () => {
+    pitchIndex = Number(b.dataset.pitch);
+    renderPitch();
+  }));
+  stage.innerHTML = `
+    <section class="intro-slide slide-in">
+      <div class="intro-media">
+        ${d.image ? `<img src="${d.image}" alt="">` : `<div class="img-placeholder"><span class="pixel">TEAM ${teamNumber(t)}</span></div>`}
+      </div>
+      <div class="intro-text">
+        <span class="tag tag-xl">NOW PITCHING｜TEAM ${teamNumber(t)}</span>
+        <h1>${esc(name(t))}</h1>
+        <p class="intro-desc">${esc(teamLabel(t))}・報告 10 分鐘＋問答 5 分鐘</p>
+        ${d.slidesUrl
+          ? `<button class="btn btn-primary pitch-open" id="pitch-open" type="button">▶ 開啟投影片</button>
+             <p class="screen-muted pitch-note">會在新分頁開啟；報告結束後關掉分頁，就會回到這裡</p>`
+          : `<p class="pitch-missing">⚠ 這組還沒有填投影片連結</p>`}
+      </div>
+    </section>`;
+  stage.querySelector("#pitch-open")?.addEventListener("click", openPitchSlides);
 }
 
 // ---------- 2. 排行榜 ----------

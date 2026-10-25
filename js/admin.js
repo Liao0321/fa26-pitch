@@ -149,6 +149,26 @@ function teamName(t) {
   return teamDisplayName(t, teamsData[t]);
 }
 
+// 投影工具：各組投影片連結是否已填
+function renderSlidesLinks() {
+  const rows = TEAM_IDS.map((t) => {
+    const url = teamsData[t]?.slidesUrl || "";
+    return `<tr>
+      <td>${esc(teamLabel(t))}</td>
+      <td>${esc(teamName(t))}</td>
+      <td>${url
+        ? `<a class="btn btn-small" href="${esc(url)}" target="_blank" rel="noopener">開啟</a> <span class="muted small">${esc(url.length > 40 ? url.slice(0, 40) + "…" : url)}</span>`
+        : `<span class="badge badge-yellow">尚未填寫</span>`}</td>
+    </tr>`;
+  }).join("");
+  document.getElementById("slides-box").innerHTML = `
+    <div class="table-wrap"><table>
+      <thead><tr><th>組別</th><th>項目名稱</th><th>投影片</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    <p class="muted small">連結由各組在「編輯我的卡片」填寫；管理員也可以在那裡幫忙填。請事先點「開啟」確認沒有權限問題。</p>`;
+}
+
 function rosterMap() {
   return new Map(currentRoster.map((r) => [r.email, r]));
 }
@@ -177,6 +197,7 @@ function watchInvestments() {
     teamsData = {};
     snap.forEach((d) => { teamsData[d.id] = d.data(); });
     renderRecords();
+    renderSlidesLinks();
   });
 }
 

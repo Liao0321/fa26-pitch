@@ -28,6 +28,10 @@ const FIELDS = {
   ],
   team: [
     { key: "projectName", label: "項目名稱", hint: "", type: "text" },
+    {
+      key: "slidesUrl", label: "投影片連結", type: "url", placeholder: "https://",
+      hint: "Google 簡報或 Canva 的分享連結，請設定成「知道連結的人都能檢視」。上台時主持人會從這裡開啟。",
+    },
     { key: "intro", label: "項目介紹", hint: "你們的案子或商品是什麼？解決什麼問題？", type: "textarea" },
   ],
 };
@@ -170,7 +174,7 @@ function renderForm() {
     ${settings?.editLocked && profile.isAdmin ? `<div class="card notice-locked"><b>🔒 編輯已鎖定</b><p style="margin:4px 0 0">你是管理員，仍然可以修改。</p></div>` : ""}
     <div id="remote-notice"></div>
     <div class="edit-layout">
-      <form class="card" id="edit-form" autocomplete="off">
+      <form class="card" id="edit-form" autocomplete="off" novalidate>
         <p class="muted small" style="margin-top:0">正在編輯：<b>${esc(who)}</b><br>${last}</p>
         <div class="field">
           <label>${IMAGE_LABEL[type]}</label>
@@ -193,7 +197,7 @@ function renderForm() {
             <label for="f-${f.key}">${f.label}</label>
             ${f.type === "textarea"
               ? `<textarea id="f-${f.key}" data-key="${f.key}" maxlength="${LIMITS[f.key]}" rows="5" placeholder="${esc(f.placeholder || "")}" ${locked ? "disabled" : ""}>${esc(draft[f.key])}</textarea>`
-              : `<input type="text" id="f-${f.key}" data-key="${f.key}" maxlength="${LIMITS[f.key]}" value="${esc(draft[f.key])}" ${locked ? "disabled" : ""}>`}
+              : `<input type="${f.type === "url" ? "url" : "text"}" id="f-${f.key}" data-key="${f.key}" maxlength="${LIMITS[f.key]}" value="${esc(draft[f.key])}" placeholder="${esc(f.placeholder || "")}" ${f.type === "url" ? 'inputmode="url" autocapitalize="off"' : ""} ${locked ? "disabled" : ""}>`}
             <div class="hint row"><span>${f.hint}</span><span class="spacer"></span><span data-count="${f.key}"></span></div>
           </div>`).join("")}
         ${locked ? "" : `<button class="btn btn-primary btn-big" type="submit" id="save-btn">儲存</button>`}
@@ -277,6 +281,11 @@ async function save() {
   for (const f of FIELDS[target.type]) {
     if ([...(draft[f.key] || "")].length > LIMITS[f.key]) {
       toast(`${f.label}超過 ${LIMITS[f.key]} 字`, "error");
+      return;
+    }
+    const v = (draft[f.key] || "").trim();
+    if (f.type === "url" && v && !/^https:\/\/\S+$/.test(v)) {
+      toast(`${f.label}要以 https:// 開頭，請直接貼上分享連結`, "error", 5000);
       return;
     }
   }
