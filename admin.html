@@ -89,7 +89,7 @@
         <h2 class="section-title">首頁文字</h2>
         <div class="card">
           <p class="small muted">
-            排版方式：空一行＝新段落；<code>## 文字</code>＝小標題；<code>- 文字</code>＝項目符號；<code>**文字**</code>＝粗體。<br>
+            排版方式：空一行＝新段落；<code>## 文字</code>＝小標題；<code>- 文字</code>＝項目符號（下一行不加 <code>-</code> 就是同一點裡的換行）；<code>**文字**</code>＝粗體；<code>[評審](judges.html)</code>、<code>[參賽隊伍](teams.html)</code>＝文章裡的綠色按鈕。<br>
             寫 <code>{評審額度}</code>、<code>{一般額度}</code> 會自動換成目前設定的 coin 數量。
           </p>
           <div class="grid-2">
@@ -117,11 +117,11 @@
       <section class="section" id="sec-schedule">
         <h2 class="section-title">賽程</h2>
         <div class="card">
-          <p class="small muted">一行一個項目，格式：<b>時間｜項目｜說明</b>（說明可省略）。也可以從 Google Sheet 直接貼上三欄。</p>
+          <p class="small muted">一行一個項目，格式：<b>時間｜項目｜說明｜地點</b>（說明、地點可省略；沒有說明但有地點時，中間留空：<code>時間｜項目｜｜地點</code>）。也可以從 Google Sheet 直接貼上四欄。地點會顯示在黃色欄位。</p>
           <div class="field">
-            <textarea id="schedule-input" class="mono" rows="10" placeholder="09:00-09:20｜報到、入座｜請用手機登入網站
-09:20-09:40｜開場、評審介紹
-09:40-10:00｜第一組 上台提案"></textarea>
+            <textarea id="schedule-input" class="mono" rows="10" placeholder="09:00-09:30｜規則講解、分組｜｜季陶 406
+09:30-12:00｜準備時間｜11:30 繳交 PPT｜各組小教室
+12:00-13:00｜午餐"></textarea>
           </div>
           <button class="btn btn-primary" id="save-schedule" type="button">儲存賽程</button>
           <p class="preview-label" style="margin-top:20px">▼ 預覽</p>

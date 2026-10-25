@@ -11,25 +11,31 @@ export const LIMITS = {
   intro: 300,
 };
 
-// 簡易排版：空行分段、「## 」小標題、「- 」項目符號、**粗體**
+// 簡易排版：空行分段、「## 」小標題、「- 」項目符號、**粗體**、[按鈕文字](網址)
+// 項目符號的下一行如果不是「- 」開頭，就是同一點裡的換行
 // {評審額度}、{一般額度} 會換成後台設定的數字
 export function renderText(text, settings = {}) {
   const fill = (s) => s
     .replaceAll("{評審額度}", settings.judgeCoins ?? 20)
-    .replaceAll("{一般額度}", settings.defaultCoins ?? 3);
-  const inline = (s) => coinify(esc(fill(s)).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>"));
+    .replaceAll("{一般額度}", settings.defaultCoins ?? 5);
+  const inline = (s) => coinify(esc(fill(s))
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    // 只允許站內頁面或 https 網址
+    .replace(/\[([^\]]+)\]\(((?:https:\/\/|[\w-]+\.html)[^)\s]*)\)/g, '<a class="inline-btn" href="$2">$1</a>'));
   const out = [];
-  let list = null;
+  let list = null; // 每一點是一個陣列，裡面是該點的每一行
   let para = [];
   const flushPara = () => { if (para.length) { out.push(`<p>${para.map(inline).join("<br>")}</p>`); para = []; } };
-  const flushList = () => { if (list) { out.push(`<ul>${list.map((li) => `<li>${inline(li)}</li>`).join("")}</ul>`); list = null; } };
+  const flushList = () => {
+    if (list) { out.push(`<ul>${list.map((li) => `<li>${li.map(inline).join("<br>")}</li>`).join("")}</ul>`); list = null; }
+  };
   for (const raw of String(text || "").split(/\r?\n/)) {
     const line = raw.trim();
     if (!line) { flushPara(); flushList(); continue; }
     if (line.startsWith("## ")) { flushPara(); flushList(); out.push(`<h3>${inline(line.slice(3))}</h3>`); continue; }
     const bullet = line.match(/^[-・•]\s*(.+)$/);
-    if (bullet) { flushPara(); (list ||= []).push(bullet[1]); continue; }
-    flushList();
+    if (bullet) { flushPara(); (list ||= []).push([bullet[1]]); continue; }
+    if (list) { list[list.length - 1].push(line); continue; }
     para.push(line);
   }
   flushPara();
@@ -61,8 +67,11 @@ export function renderSchedule(rows, cur = -1) {
     <li class="${i === cur ? "is-now" : ""} ${cur > -1 && i < cur ? "is-past" : ""}">
       <div class="tl-time">${esc(r.time)}</div>
       <div class="tl-body">
-        <b>${esc(r.title)}</b>${i === cur ? ` <span class="badge">進行中</span>` : ""}
-        ${r.note ? `<div class="muted small">${esc(r.note)}</div>` : ""}
+        <div class="tl-main">
+          <b>${esc(r.title)}</b>${i === cur ? ` <span class="badge">進行中</span>` : ""}
+          ${r.note ? `<div class="muted small">${esc(r.note)}</div>` : ""}
+        </div>
+        ${r.place ? `<span class="place-tag">📍 ${esc(r.place)}</span>` : ""}
       </div>
     </li>`).join("")}</ol>`;
 }

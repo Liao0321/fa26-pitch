@@ -36,16 +36,36 @@
       <div class="card prose" id="rules"><p class="muted">載入中…</p></div>
     </section>
 
-    <nav class="home-links">
-      <a class="btn btn-primary btn-big" href="schedule.html">賽程</a>
-      <a class="btn btn-primary btn-big" href="judges.html">評審</a>
-      <a class="btn btn-primary btn-big" href="teams.html">參賽隊伍</a>
-    </nav>
+    <section class="section" id="schedule-section">
+      <h2 class="section-title">賽程</h2>
+      <div id="schedule"><p class="muted">載入中…</p></div>
+    </section>
   </main>
 
   <script type="module">
     import { startPage, login, esc, watchSettings, watchContent, quotaOf, coinify } from "./js/common.js";
-    import { renderText } from "./js/cards.js";
+    import { renderText, renderSchedule } from "./js/cards.js";
+    import { EVENT_DATE } from "./js/firebase-config.js";
+
+    // 比賽當天：依照現在時間標出「進行中」的賽程
+    function currentIndex(rows) {
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      if (today !== EVENT_DATE) return -1;
+      const minutes = now.getHours() * 60 + now.getMinutes();
+      let idx = -1;
+      rows.forEach((r, i) => {
+        const m = String(r.time || "").match(/(\d{1,2})[:：](\d{2})/);
+        if (m && Number(m[1]) * 60 + Number(m[2]) <= minutes) idx = i;
+      });
+      return idx;
+    }
+    function renderScheduleBox() {
+      if (!content) return;
+      const rows = content.schedule || [];
+      document.getElementById("schedule").innerHTML = renderSchedule(rows, currentIndex(rows));
+    }
+    setInterval(renderScheduleBox, 60 * 1000);
 
     const STATE_TEXT = {
       notOpen: ["投資尚未開放", "badge-gray"],
@@ -85,7 +105,7 @@
     }
 
     watchSettings((s) => { settings = s; render(); });
-    watchContent((c) => { content = c; render(); });
+    watchContent((c) => { content = c; render(); renderScheduleBox(); });
     startPage({ active: "home", onProfile(p) { profile = p; render(); } });
   </script>
 </body>

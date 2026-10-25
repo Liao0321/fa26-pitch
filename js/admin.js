@@ -201,12 +201,12 @@ function renderRecords() {
       <div class="stat"><b>${logs.length}</b><span>變動次數</span></div>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>名次</th><th>組別</th><th>評審投資</th><th>觀眾投資</th><th>總額</th><th>支持人數</th><th>老師投入</th></tr></thead>
+      <thead><tr><th>名次</th><th>組別</th><th>評審投資</th><th>觀眾投資</th><th>總額</th><th>支持人數</th></tr></thead>
       <tbody>${stats.ranking.map((s) => `
         <tr><td>${s.rank}</td><td>${esc(teamLabel(s.teamId))}｜${esc(teamName(s.teamId))}</td>
-        <td>${s.judge}</td><td>${s.audience}</td><td><b>${s.total}</b></td><td>${s.supporters}</td><td>${s.teacher}</td></tr>`).join("")}
+        <td>${s.judge}</td><td>${s.audience}</td><td><b>${s.total}</b></td><td>${s.supporters}</td></tr>`).join("")}
       </tbody></table></div>
-    <p class="muted small">排名依序比較：總額 → 支持人數 → 老師投入。三項都相同才會並列。「觀眾投資」包含老師與組員。</p>`;
+    <p class="muted small">排名依序比較：總額 → 支持人數 → 評審投資。三項都相同才會並列。「觀眾投資」包含老師與組員。</p>`;
 
   const people = investments
     .map((inv) => ({ ...inv, total: TEAM_IDS.reduce((s, t) => s + (inv[t] || 0), 0) }))
@@ -353,7 +353,11 @@ function fillContentOnce(c) {
   introInput.value = c.intro;
   rulesInput.value = c.rules;
   scheduleInput.value = (c.schedule || [])
-    .map((r) => [r.time, r.title, r.note].filter((x, i) => i < 2 || x).join("｜"))
+    .map((r) => {
+      const cells = [r.time, r.title, r.note || "", r.place || ""];
+      while (cells.length > 2 && !cells[cells.length - 1]) cells.pop();
+      return cells.join("｜");
+    })
     .join("\n");
   renderContentPreview();
   renderSchedulePreview();
@@ -395,7 +399,7 @@ function parseSchedule(text) {
   return text.split(/\r?\n/)
     .map((line) => line.split(/\t|｜|\|/).map((c) => c.trim()))
     .filter((cells) => cells.some(Boolean))
-    .map(([time = "", title = "", note = ""]) => ({ time, title, note }));
+    .map(([time = "", title = "", note = "", place = ""]) => ({ time, title, note, place }));
 }
 
 function renderSchedulePreview() {

@@ -15,7 +15,7 @@ export const firebaseConfig = {
 // 活動名稱（首頁標題、瀏覽器分頁標題會用到）
 export const EVENT_NAME = "FA26 G1 提案比賽";
 
-// 比賽日期（賽程頁會在當天標出「進行中」的項目）
+// 比賽日期（首頁的賽程會在當天標出「進行中」的項目）
 export const EVENT_DATE = "2026-11-06";
 
 // 只允許這個網域的 Google 帳號登入

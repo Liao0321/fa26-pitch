@@ -83,7 +83,7 @@ function surnameOf(name) {
 export function startReplay(canvas, { logs, settings, teamIds, teamName, personName = (l) => l.account }) {
   const ctx = canvas.getContext("2d");
   const judgeQuota = settings?.judgeCoins ?? 20;
-  const defaultQuota = settings?.defaultCoins ?? 3;
+  const defaultQuota = settings?.defaultCoins ?? 5;
 
   // ---------- 整理事件 ----------
   const people = new Map(); // account → { account, isJudge, wallet, x, y }

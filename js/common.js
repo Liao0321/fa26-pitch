@@ -21,7 +21,7 @@ export const DEFAULT_SETTINGS = {
   editLocked: false,
   hideAmounts: true,
   judgeCoins: 20,
-  defaultCoins: 3,
+  defaultCoins: 5,
 };
 
 // ---------- 小工具 ----------
@@ -246,7 +246,6 @@ export function watchContent(cb) {
 // ---------- 頁首 ----------
 const NAV = [
   { id: "home", href: "index.html", label: "首頁" },
-  { id: "schedule", href: "schedule.html", label: "賽程" },
   { id: "judges", href: "judges.html", label: "評審" },
   { id: "teams", href: "teams.html", label: "參賽隊伍" },
   { id: "edit", href: "edit.html", label: "編輯我的卡片", show: (p) => p && (p.isJudge || p.team || p.isAdmin) },

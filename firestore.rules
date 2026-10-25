@@ -45,7 +45,7 @@ service cloud.firestore {
     function quota() {
       return myJudgeSlot() != null
         ? settings().get('judgeCoins', 20)
-        : settings().get('defaultCoins', 3);
+        : settings().get('defaultCoins', 5);
     }
 
     // config/settings：網站設定、首頁文字、賽程。任何人可讀，只有管理員可改
